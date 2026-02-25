@@ -4,26 +4,41 @@ from database import get_connection
 
 def lambda_handler(event, context):
 
-    # ✅ get id from query parameter
-    params = event.get("queryStringParameters")
+    # ✅ Read request body from API Gateway
+    request_body = json.loads(event.get("body", "{}"))
 
-    if not params or not params.get("id"):
+    # ✅ Validation
+    if not request_body.get("id"):
         return {
             "statusCode": 400,
             "body": json.dumps({
-                "message": "Customer ID required"
+                "message": "Category id required"
             })
         }
-
-    customer_id = params.get("id")
 
     conn = get_connection()
     cursor = conn.cursor()
 
-    query = "DELETE FROM customers WHERE id=%s"
+    query = "DELETE FROM expense_categories WHERE id=%s"
 
-    cursor.execute(query, (customer_id,))
+    cursor.execute(
+        query,
+        (request_body.get("id"),)
+    )
+
     conn.commit()
+
+    # ✅ Check record exists or not
+    if cursor.rowcount == 0:
+        cursor.close()
+        conn.close()
+
+        return {
+            "statusCode": 404,
+            "body": json.dumps({
+                "message": "Category not found"
+            })
+        }
 
     cursor.close()
     conn.close()
@@ -31,19 +46,20 @@ def lambda_handler(event, context):
     return {
         "statusCode": 200,
         "body": json.dumps({
-            "message": "Customer deleted successfully"
+            "message": "Category deleted successfully"
         })
     }
 
 
-# ✅ LOCAL TEST
+# ==================================================
+# ✅ LOCAL TEST (VS CODE)
+# ==================================================
 if __name__ == "__main__":
 
     event = {
-        "queryStringParameters": {
-            "id": "3"
-        }
+        "body": json.dumps({
+            "id": 1
+        })
     }
 
-    response = lambda_handler(event, None)
-    print(response)
+    print(lambda_handler(event, None))

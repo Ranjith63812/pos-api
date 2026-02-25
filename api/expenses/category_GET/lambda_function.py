@@ -4,57 +4,74 @@ from database import get_connection
 
 def lambda_handler(event, context):
 
-    # ✅ Get request body from API Gateway
-    request_body = json.loads(event.get("body", "{}"))
-
-    # ✅ Validation
-    if not request_body.get("category_name"):
-        return {
-            "statusCode": 400,
-            "body": json.dumps({
-                "message": "Category name required"
-            })
-        }
-
     conn = get_connection()
     cursor = conn.cursor()
 
-    query = """
-        INSERT INTO expense_categories
-        (category_name, description)
-        VALUES (%s, %s)
-    """
+    # ✅ safely read query param
+    category_id = (
+        event.get("queryStringParameters", {}) or {}
+    ).get("id")
 
-    cursor.execute(
-        query,
-        (
-            request_body.get("category_name"),
-            request_body.get("description")
-        )
-    )
+    # =====================================
+    # ✅ GET BY ID
+    # =====================================
+    if category_id:
 
-    conn.commit()
+        query = """
+            SELECT id, category_name, description, status
+            FROM expense_categories
+            WHERE id = %s
+        """
+
+        cursor.execute(query, (category_id,))
+        data = cursor.fetchone()
+
+        if not data:
+            return {
+                "statusCode": 404,
+                "body": json.dumps({
+                    "message": "Category not found"
+                })
+            }
+
+    # =====================================
+    # ✅ GET ALL
+    # =====================================
+    else:
+
+        query = """
+            SELECT id, category_name, description, status
+            FROM expense_categories
+        """
+
+        cursor.execute(query)
+        data = cursor.fetchall()
 
     cursor.close()
     conn.close()
 
+    # ✅ Proper structured response
     return {
         "statusCode": 200,
+        "headers": {
+            "Content-Type": "application/json"
+        },
         "body": json.dumps({
-            "message": "Category created successfully"
-        })
+            "success": True,
+            "data": data
+        }, default=str)
     }
 
 
+# =====================================
 # ✅ LOCAL TEST
+# =====================================
 if __name__ == "__main__":
 
-    event = {
-        "body": json.dumps({
-            "category_name": "Fuel",
-            "description": "Petrol and diesel expenses"
-        })
-    }
+    print("\nGET ALL")
+    event_all = {"queryStringParameters": None}
+    print(lambda_handler(event_all, None))
 
-    response = lambda_handler(event, None)
-    print(response)
+    print("\nGET BY ID")
+    event_id = {"queryStringParameters": {"id": "2"}}
+    print(lambda_handler(event_id, None))
