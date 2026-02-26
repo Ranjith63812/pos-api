@@ -52,9 +52,9 @@ def create_sale_api(request_body):
 if __name__ == "__main__":
 
     request = {
-    "customer_id": 3,
-    "sales_date": "2026-02-24",
-    "status": "Final",
+    "customer_id": 4,
+    "sales_date": "2026-02-25",
+    "status": "SemiFinal",
     "reference_no": "SL003",
     "created_by": "Admin"
 }
